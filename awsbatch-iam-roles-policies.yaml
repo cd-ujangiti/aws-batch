@@ -1,0 +1,272 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template creates the AWS Batch roles and policies.
+Resources:
+  RehrigBatchServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role for the rehrig batch job
+      RoleName: !Sub "rehrig-batch-service-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - batch.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        #        - arn:aws:iam::aws:policy/AmazonKinesisAnalyticsFullAccess
+        - !Join
+          - ""
+          - - "arn:"
+            - !Ref "AWS::Partition"
+            - ":iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+  RehrigBatchExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role for the rehrig batch job
+      RoleName: !Sub "rehrig-batch-execution-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+  RehrigBatchExecutionPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "rehrig-batch-execution-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:BatchGetImage"
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:GetAuthorizationToken"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: "*"
+
+      Roles:
+        - !Ref RehrigBatchExecutionRole
+
+  RehrigBatchJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role for the rehrig batch job
+      RoleName: !Sub "rehrig-batch-job-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+  RehrigBatchJobRoleDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "rehrig-batch-job-role-default-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:BatchGetImage"
+              - "ecr:GetDownloadUrlForLayer"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "ecr:GetAuthorizationToken"
+            Resource: "*"
+      Roles:
+        - !Ref RehrigBatchJobRole
+
+  RehrigBatchJobPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "rehrig-batch-job-role-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: "ec2:DescribeInstance*"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "dynamodb:BatchGet*"
+              - "dynamodb:Delete*"
+              - "dynamodb:DescribeStream"
+              - "dynamodb:DescribeTable"
+              - "dynamodb:Get*"
+              - "dynamodb:PutItem"
+              - "dynamodb:Query"
+              - "dynamodb:Scan"
+              - "dynamodb:Update*"
+            Resource: "*"
+            Sid: SpecificTable
+          - Effect: Allow
+            Action:
+              - "secretsmanager:DeleteSecret"
+              - "secretsmanager:DescribeSecret"
+              - "secretsmanager:GetResourcePolicy"
+              - "secretsmanager:GetSecretValue"
+              - "secretsmanager:ListSecretVersionIds"
+              - "secretsmanager:PutResourcePolicy"
+              - "secretsmanager:PutSecretValue"
+              - "secretsmanager:TagResource"
+            Resource: "*"
+            Sid: SecretsManagerDbCredentialsAccess
+          - Effect: Allow
+            Action:
+              - "dbqms:CreateFavoriteQuery"
+              - "dbqms:CreateQueryHistory"
+              - "dbqms:DeleteFavoriteQueries"
+              - "dbqms:DeleteQueryHistory"
+              - "dbqms:DescribeFavoriteQueries"
+              - "dbqms:DescribeQueryHistory"
+              - "dbqms:GetQueryString"
+              - "dbqms:UpdateFavoriteQuery"
+              - "dbqms:UpdateQueryHistory"
+              - "rds-data:BatchExecuteStatement"
+              - "rds-data:BeginTransaction"
+              - "rds-data:CommitTransaction"
+              - "rds-data:ExecuteSql"
+              - "rds-data:ExecuteStatement"
+              - "rds-data:RollbackTransaction"
+              - "secretsmanager:CreateSecret"
+              - "secretsmanager:GetRandomPassword"
+              - "secretsmanager:ListSecrets"
+              - "tag:GetResources"
+            Resource: "*"
+            Sid: RDSDataServiceAccess
+          - Effect: Allow
+            Action:
+              - "ecr:GetAuthorizationToken"
+            Resource: "*"
+      Roles:
+        - !Ref RehrigBatchJobRole
+
+  RehrigBatchInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role for the rehrig batch job
+      RoleName: !Sub "rehrig-batch-instance-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        #        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - !Join
+          - ""
+          - - "arn:"
+            - !Ref "AWS::Partition"
+            - ":iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+  RehrigBatchInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      # Description: Role for the rehrig batch job
+      # RoleName: !Sub "rehrig-batch-instance-profile"
+      Roles:
+        - !Ref RehrigBatchInstanceRole
+
+  CustomCDKECRDeploymentServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role for the rehrig batch job
+      RoleName: !Sub "custom-cdk-ecr-deployment-service-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        #        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Join
+          - ""
+          - - "arn:"
+            - !Ref "AWS::Partition"
+            - ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  CustomCDKECRDeploymentServiceRoleDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "custom-cdk-ecr-deployment-service-role-default-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:BatchGetImage"
+              - "ecr:CompleteLayerUpload"
+              - "ecr:DescribeImageScanFindings"
+              - "ecr:DescribeImages"
+              - "ecr:DescribeRepositories"
+              - "ecr:GetAuthorizationToken"
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:GetRepositoryPolicy"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:ListImages"
+              - "ecr:ListTagsForResource"
+              - "ecr:PutImage"
+              - "ecr:UploadLayerPart"
+              - "s3:GetObject"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "ecr:GetAuthorizationToken"
+            Resource: "*"
+      Roles:
+        - !Ref CustomCDKECRDeploymentServiceRole
+
+  RehrigBatchJobAssetEventsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role for the rehrig batch job
+      RoleName: !Sub "rehrig-batch-job-asset-events-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+  RehrigBatchJobAssetEventsRoleDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "rehrig-batch-job-asset-events-role-default-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "batch:SubmitJob"
+            Resource:
+              "*"
+              # - !GetAtt
+              #   - rehrigbatchjobqueue1
+              #   - JobQueueArn
+              # - !Ref RehrigBatchJobAssetD7489B7C
+
+      Roles:
+        - !Ref RehrigBatchJobAssetEventsRole
